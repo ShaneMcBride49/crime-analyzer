@@ -3,10 +3,13 @@ import ReactDOM from 'react-dom';
 import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
+import DnDFlow from "./App";
 
 ReactDOM.render(
   <React.StrictMode>
-    <App />
+      <div className="window">
+        <DnDFlow/>
+      </div>
   </React.StrictMode>,
   document.getElementById('root')
 );
