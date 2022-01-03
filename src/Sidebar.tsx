@@ -1,5 +1,5 @@
 import React, { DragEvent } from 'react';
-import Forms from "./Forms";
+import { Names } from "./Forms";
 
 const onDragStart = (event: DragEvent, nodeType: string) => {
     event.dataTransfer.setData('application/reactflow', nodeType);
@@ -7,9 +7,9 @@ const onDragStart = (event: DragEvent, nodeType: string) => {
 };
 
 const Sidebar = () => {
-    const formsArray = Forms.map((form)=>
-        <div className="react-flow__node-input" onDragStart={(event: DragEvent) => onDragStart(event, 'default')} draggable>
-            {form.name}
+    const formsArray = Names.map((form)=>
+        <div className="react-flow__node-input" onDragStart={(event: DragEvent) => onDragStart(event, `form-${form}`)} draggable>
+            {form}
         </div>
     );
     return (

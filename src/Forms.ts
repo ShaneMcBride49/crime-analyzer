@@ -1,3 +1,5 @@
+import { indexBy, pluck } from 'ramda';
+
 export type Input = {
     type: 'input',
     name: string,
@@ -57,4 +59,6 @@ const Forms: Form[] = [
         ]
     }
 ];
-export default Forms;
+
+export default indexBy(i=>i.name, Forms);
+export const Names = pluck('name', Forms);
