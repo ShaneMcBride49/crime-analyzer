@@ -12,14 +12,18 @@ import ReactFlow, {
   Node,
   Handle
 } from 'react-flow-renderer';
-
+import { partition, equals } from 'ramda';
 import Sidebar from './Sidebar';
+
+import buildChains from './BuildChains';
 
 import './dnd.css';
 import Forms, {Input} from "./Forms";
 
 
-const initialElements = [{ id: '1', type: 'input', data: { label: 'input node' }, style: {width: '200px'}, position: { x: 250, y: 5 } }];
+export type Element = (Node&{form?: any}) | Edge;
+const initialElements: Element[] = [];// [{ id: '1', type: 'input', data: { label: 'input node' }, style: {width: '200px'}, position: { x: 250, y: 5 } }];
+
 
 const onDragOver = (event: DragEvent) => {
   event.preventDefault();
@@ -29,14 +33,39 @@ const onDragOver = (event: DragEvent) => {
 let id = 0;
 const getId = (): ElementId => `dndnode_${id++}`;
 
+
 const DnDFlow = () => {
+
   const [reactFlowInstance, setReactFlowInstance] = useState<OnLoadParams>();
-  const [elements, setElements] = useState<Elements>(initialElements);
-  const [pageData, setPageData] = useState({});
+  const [elements, setElements] = useState<Element[]>(initialElements);
+  const [pageData, setPageData] = useState<{[key: string]:any}>({
 
+//{age: 30}, {age: 20}
+  });
+  const [outputData, setOutputData] = useState<{[key: string]:any}>({});
+  const changeOutputData = useCallback((nodeId: string, data: any)=> setOutputData({ ...outputData, [nodeId]: data}), [setOutputData, outputData] )
   const changePageData = useCallback((nodeId: string, data: any)=> setPageData({ ...pageData, [nodeId]: data}), [setPageData, pageData] )
+  const chains = buildChains(elements);
+  const finalOutput = chains.map((data)=>{
+    // @ts-ignore
+    return data.map((node) => {
+      const result = pageData[node];
+      if(typeof result === 'string'){
+        return (data:any) => {
+          if(!equals(data, outputData[result]) )
+          changeOutputData(result, data);
+        }
+      }
 
-  console.log(JSON.stringify(pageData, null, '\t'));
+      return result;
+    });
+  })
+  console.log(finalOutput)
+
+  // @ts-ignore
+  Promise.all(finalOutput.map(chain => chain.reduce(async (acc, func) => func(await acc), undefined)))
+
+
 
   const onConnect = (params: Connection | Edge) => setElements((els) => addEdge(params, els));
   const onElementsRemove = (elementsToRemove: Elements) => setElements((els) => removeElements(elementsToRemove, els));
@@ -52,16 +81,16 @@ const DnDFlow = () => {
       const id = getId();
       // Key id value = data
       const form = type.startsWith('form-') ? Forms[type.split('-')[1]] : null;
-      const newNode: Node = {
+      if(form) changePageData(id, form.output({}))
+      if(type === 'output') {
+        changePageData(id, id);
+      }
+      const newNode: Node&{form?:any} = {
         id,
-        type:form?'default':`${type}`,
+        type:form?form.start?'input':'default':`${type}`,
         position,
-        data: {
-          label:
-              form ?
-                  <NodeForm title={form.name} id={id} data={{}} inputs={form.inputs} defaults={{}} onChange={changePageData} /> :
-                  `${type} node`
-          },
+        form,
+
         style: {
           width: '200px'
         }
@@ -76,7 +105,17 @@ const DnDFlow = () => {
         <ReactFlowProvider>
           <div className="reactflow-wrapper">
             <ReactFlow
-                elements={elements}
+                elements={elements.map((i)=>{
+                  if(!('source' in i)){
+                    return { ...i, data: {
+                      label:
+                          i.form ?
+                              <NodeForm title={i.form.name} id={i.id} data={{}} inputs={i.form.inputs} defaults={pageData[id]} onChange={changePageData} output={i.form.output} /> :
+                              (i.type==='output')?<OutputNode id={i.id} state={outputData[i.id]}/>:`${i.type} node`
+                    }}
+                  }
+                  return i;
+                })}
                 onConnect={onConnect}
                 onElementsRemove={onElementsRemove}
                 onLoad={onLoad}
@@ -93,13 +132,14 @@ const DnDFlow = () => {
   );
 };
 
-function NodeForm ({ title, id, data = {}, defaults = {}, inputs, onChange } : { id: string, data: any, defaults?: any, title: string, inputs: Input[], onChange: any }) {
+
+
+function NodeForm ({ title, id, data = {}, defaults = {}, inputs, onChange, output = i => i} : { id: string, data: any, defaults?: any, title: string, inputs: Input[], onChange: any, output?: (data: { [key: string]: string }) => any }) {
   const [state, setState] = useState(defaults);
   const change = (data: any) => {
     setState(data);
-    onChange(id, data);
+    onChange(id, output(data));
   };
-
 
   return (
       <div>
@@ -119,5 +159,13 @@ function NodeForm ({ title, id, data = {}, defaults = {}, inputs, onChange } : {
       </div>
   )
 }
+function OutputNode ({ id, state=''} : { id: string, state: any}) {
+  return (
+      <div>
+          {JSON.stringify(state, null, '\t')}
+      </div>
+  )
+}
+
 
 export default DnDFlow;
