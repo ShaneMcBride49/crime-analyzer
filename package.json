@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@nivo/bar": "^0.78.0",
+    "@nivo/core": "^0.78.0",
+    "@nivo/pie": "^0.78.0",
     "@testing-library/jest-dom": "^5.16.1",
     "@testing-library/react": "^12.1.2",
     "@testing-library/user-event": "^13.5.0",
@@ -15,6 +18,8 @@
     "react-dom": "^17.0.2",
     "react-flow-renderer": "^9.7.1",
     "react-scripts": "5.0.0",
+    "soda-js": "^0.2.3",
+    "sodajs": "^0.4.10",
     "typescript": "^4.5.4",
     "web-vitals": "^2.1.2"
   },

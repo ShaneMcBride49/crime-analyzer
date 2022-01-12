@@ -23,8 +23,11 @@ const Sidebar = () => {
             {/*    Default Node*/}
             {/*</div>*/}
             <div className="react-flow__node-output" onDragStart={(event: DragEvent) => onDragStart(event, 'output')} draggable>
-                Output Node
+                Text Output
             </div>
+            {/*<div className="react-flow__node-output" onDragStart={(event: DragEvent) => onDragStart(event, 'barchart')} draggable>*/}
+            {/*     Bar Chart*/}
+            {/*</div>*/}
         </aside>
     );
 };

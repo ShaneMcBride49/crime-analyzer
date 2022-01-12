@@ -12,8 +12,11 @@ import ReactFlow, {
   Node,
   Handle
 } from 'react-flow-renderer';
-import { partition, equals } from 'ramda';
+import { partition, equals, pluck, uniq, reduceBy, map, toPairs } from 'ramda';
 import Sidebar from './Sidebar';
+
+import { ResponsiveBar, Bar } from '@nivo/bar';
+// import { Pie } from '@nivo/Pie';
 
 import buildChains from './BuildChains';
 
@@ -81,18 +84,20 @@ const DnDFlow = () => {
       const id = getId();
       // Key id value = data
       const form = type.startsWith('form-') ? Forms[type.split('-')[1]] : null;
+      const barchart = type.startsWith('barchart-') ? Forms[type.split('-')[1]] : null;
       if(form) changePageData(id, form.output({}))
-      if(type === 'output') {
+      if(type === 'output' || type === 'barchart') {
         changePageData(id, id);
       }
       const newNode: Node&{form?:any} = {
-        id,
-        type:form?form.start?'input':'default':`${type}`,
+        id:(type==='barchart')?'barchart-'+id:id,
+        type:form?
+            (form.start?'input':'default'):(type==='barchart')?'output':`${type}`,
         position,
         form,
 
         style: {
-          width: '200px'
+          width: '900px'
         }
       };
 
@@ -109,9 +114,10 @@ const DnDFlow = () => {
                   if(!('source' in i)){
                     return { ...i, data: {
                       label:
-                          i.form ?
-                              <NodeForm title={i.form.name} id={i.id} data={{}} inputs={i.form.inputs} defaults={pageData[id]} onChange={changePageData} output={i.form.output} /> :
-                              (i.type==='output')?<OutputNode id={i.id} state={outputData[i.id]}/>:`${i.type} node`
+                          ( i.form ) ? <NodeForm title={i.form.name} id={i.id} data={{}} inputs={i.form.inputs} defaults={pageData[id]} onChange={changePageData} output={i.form.output} /> :
+                          // (i.id.startsWith('barchart')) ? <BarChartNode id={i.id} state={outputData[i.id]}/>:
+                          (i.type==='output') ? <TextOutputNode id={i.id} state={outputData[i.id]}/>:
+                          `${i.type} node`
                     }}
                   }
                   return i;
@@ -147,7 +153,7 @@ function NodeForm ({ title, id, data = {}, defaults = {}, inputs, onChange, outp
         {inputs.map(input => {
           switch (input.type) {
             case 'input':
-              return <input type="text" value={state[input.name]} placeholder={input.name} onChange={(e) => change({...state, [input.name]: e.target.value})}/>
+              return <input type="text" spellCheck="false" value={state[input.name]} placeholder={input.name} onChange={(e) => change({...state, [input.name]: e.target.value})}/>
             case 'select':
               return <select onChange={(e) => change({...state, [input.name]: e.target.value})} value={state[input.name]}>
                 {input.options.map((option) => <option>{option}</option>)}
@@ -159,13 +165,103 @@ function NodeForm ({ title, id, data = {}, defaults = {}, inputs, onChange, outp
       </div>
   )
 }
-function OutputNode ({ id, state=''} : { id: string, state: any}) {
+
+function BarOutputNode({ id, state=''} : { id: string, state: any}) {
   return (
       <div>
-          {JSON.stringify(state, null, '\t')}
+        {JSON.stringify(state, null, '\t')}
+      </div>
+  );
+}
+
+function TextOutputNode ({ id, state=[]} : { id: string, state: any}) {
+   const [data, setData] = useState({keys: [], indexBy: ''});
+  const change = (data: any) => {
+    setData(data);
+    // onChange(id, output(data));
+    console.log(data.keys)
+    console.log(state);
+
+  };
+  return (
+      // <div>
+      //     {JSON.stringify(state, null, '\t')}keys: state.map((i)=>i[e.target.value])
+      // </div>reduceBy((a:number)=> a + 1, 0, (i: any)=> i[e.target.value], state)
+      <div>
+        {/* @ts-ignore*/}
+        <input type="text" value={data.key} placeholder="key" onChange={(e) => change({...data, keys: toPairs(state).map((i)=>({id: i[0], value:i[1]})), key: e.target.value})}/>
+        {/*<input type="text" value={data.indexBy} placeholder="indexBy" onChange={(e) => change({...data, indexBy: e.target.value})}/>*/}
+             {/*{JSON.stringify(state, null, '\t')}*/}
+      <Bar
+          data={toPairs(state).map((i)=>({id: i[0], value:i[1]}))}//data.keys
+          width={1000}
+          height={500}
+          // keys={['1', '2','3','4','5','6','7']}
+          // indexBy={data.indexBy}
+          margin={{ top: 50, right: 130, bottom: 50, left: 60 }}
+          padding={0.4}
+          valueScale={{ type: "linear" }}
+          colors="#3182CE"
+          animate={true}
+          enableLabel={false}
+          axisTop={null}
+          axisRight={null}
+          axisLeft={{
+            tickSize: 5,
+            tickPadding: 5,
+            tickRotation: 0,
+            legend: "",
+            legendPosition: "middle",
+            legendOffset: -40
+          }}
+      />
       </div>
   )
 }
+// function PieOutputNode ({ id, state=[]} : { id: string, state: any}) {
+//   const [data, setData] = useState({keys: [], indexBy: ''});
+//   const change = (data: any) => {
+//     setData(data);
+//     // onChange(id, output(data));
+//     console.log(data.keys)
+//     console.log(state);
+//
+//   };
+//   return (
+//       // <div>
+//       //     {JSON.stringify(state, null, '\t')}keys: state.map((i)=>i[e.target.value])
+//       // </div>reduceBy((a:number)=> a + 1, 0, (i: any)=> i[e.target.value], state)
+//       <div>
+//         {/* @ts-ignore*/}
+//         <input type="text" value={data.key} placeholder="key" onChange={(e) => change({...data, keys: toPairs(state).map((i)=>({id: i[0], value:i[1]})), key: e.target.value})}/>
+//         {/*<input type="text" value={data.indexBy} placeholder="indexBy" onChange={(e) => change({...data, indexBy: e.target.value})}/>*/}
+//         {/*{JSON.stringify(state, null, '\t')}*/}
+//         <Pie
+//             data={toPairs(state).map((i)=>({id: i[0], value:i[1]}))}//data.keys
+//             width={1000}
+//             height={500}
+//             // keys={['1', '2','3','4','5','6','7']}
+//             // indexBy={data.indexBy}
+//             margin={{ top: 50, right: 130, bottom: 50, left: 60 }}
+//             // padding={0.4}
+//             // valueScale={{ type: "linear" }}
+//             colors="#3182CE"
+//             animate={true}
+//             // enableLabel={false}
+//             // axisTop={null}
+//             // axisRight={null}
+//             // axisLeft={{
+//             //   tickSize: 5,
+//             //   tickPadding: 5,
+//             //   tickRotation: 0,
+//             //   legend: "",
+//             //   legendPosition: "middle",
+//             //   legendOffset: -40
+//
+//         />
+//       </div>
+//   )
+// }
 
 
 export default DnDFlow;

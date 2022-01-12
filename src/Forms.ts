@@ -1,6 +1,9 @@
-import {drop, indexBy, pluck, sum, take, uniq, uniqBy} from 'ramda';
+import {drop, indexBy, pluck, sum, take, uniq, uniqBy, reduceBy, equals, prop, map} from 'ramda';
 import filter from './filter';
 import request from './request';
+import groupAverage from './groupAverage';
+const soda = require('soda-js');
+
 export type Input = {
     type: 'input',
     name: string,
@@ -85,16 +88,47 @@ const Forms: Form[] = [
     {
         name: "MultiplyBy",
         inputs: single('By'),
-        output: ({By}) => {
-            return (arr: number[] | number) => Array.isArray(arr)? arr.map((i)=>i*+By): arr*+By;
-        }
+        output: ({By}) =>
+            (arr: number[] | number) => (arr && typeof arr === 'object') ? map((i) => i * +By, arr) : arr * +By
     },
     {
         name: "Request",
         inputs: single('URL'),
         start: true,
-        output: ({URL}) => () => request(URL)
-    }
+        output: ({URL='https://jsonplaceholder.typicode.com/todos'}) => () => request(URL)
+    },
+    {
+        name: "San Francisco Crime Data",
+        inputs: [],
+        start: true,
+        output: ({URL='https://jsonplaceholder.typicode.com/todos'}) => async () => {
+            var consumer = new soda.Consumer('data.sfgov.org');
+            let data = await new Promise((resolve, reject) => consumer.query().withDataset('wg3w-h783').limit(1000).getRows().on('success', resolve).on('error', reject))
+            return data;
+        }
+    },
+    {
+        name: "Group Count",
+        inputs: single('Attribute'),
+        output: ({Attribute}) => reduceBy((a:number)=> a + 1, 0, (i: any)=> i[Attribute])
+
+    },
+    {
+        name: "Group Sum",
+        inputs: [{type: 'input', name: 'Group'}, {type: 'input', name:'Attribute'}],
+        output: ({Group, Attribute}) => reduceBy((a:number, b)=> a + b[Attribute], 0, (i: any)=> i[Group])
+    },
+    {
+        name: "Group Average",
+        inputs: [{type: 'input', name: 'Group'}, {type: 'input', name:'Attribute'}],
+        output: ({Group, Attribute}) => groupAverage(Attribute, Group)
+    },
+    {
+        name: "Bar Chart",
+        inputs: [{type: 'input', name: 'Group'}, {type: 'input', name:'Attribute'}],
+        output: ({Group, Attribute}) => groupAverage(Attribute, Group)
+    },
+
 ];
 
 export default indexBy(i => i.name, Forms);
