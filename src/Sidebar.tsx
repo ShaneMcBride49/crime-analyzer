@@ -13,21 +13,21 @@ const Sidebar = () => {
         </div>
     );
     return (
-        <aside>
+        <aside style={{overflowY: 'scroll'}}>
             <div className="description"><h1>Nodes</h1></div>
-            <div className="react-flow__node-input" onDragStart={(event: DragEvent) => onDragStart(event, 'input')} draggable>
-                Input Node
-            </div>
             {formsArray}
-            {/*<div className="react-flow__node-default" onDragStart={(event: DragEvent) => onDragStart(event, 'default')} draggable>*/}
-            {/*    Default Node*/}
-            {/*</div>*/}
-            <div className="react-flow__node-output" onDragStart={(event: DragEvent) => onDragStart(event, 'output')} draggable>
+            <div className="react-flow__node-output" onDragStart={(event: DragEvent) => onDragStart(event, 'text')} draggable>
                 Text Output
             </div>
-            {/*<div className="react-flow__node-output" onDragStart={(event: DragEvent) => onDragStart(event, 'barchart')} draggable>*/}
-            {/*     Bar Chart*/}
-            {/*</div>*/}
+            <div className="react-flow__node-output" onDragStart={(event: DragEvent) => onDragStart(event, 'calendar')} draggable>
+                Calendar
+            </div>
+            <div className="react-flow__node-output" onDragStart={(event: DragEvent) => onDragStart(event, 'barchart')} draggable>
+                 Bar Chart
+            </div>
+            <div className="react-flow__node-output" onDragStart={(event: DragEvent) => onDragStart(event, 'piechart')} draggable>
+                 Pie Chart
+            </div>
         </aside>
     );
 };

@@ -1,4 +1,4 @@
-import React, {useState, DragEvent, useEffect, useCallback} from 'react';
+import React, {useState, DragEvent, useEffect, useCallback, useMemo} from 'react';
 import ReactFlow, {
   ReactFlowProvider,
   addEdge,
@@ -12,20 +12,25 @@ import ReactFlow, {
   Node,
   Handle
 } from 'react-flow-renderer';
+
+import { useDebouncedCallback } from 'use-debounce';
+
 import { partition, equals, pluck, uniq, reduceBy, map, toPairs } from 'ramda';
 import Sidebar from './Sidebar';
 
-import { ResponsiveBar, Bar } from '@nivo/bar';
+import { Bar } from '@nivo/bar';
 // import { Pie } from '@nivo/Pie';
+import { Calendar } from '@nivo/calendar';
 
 import buildChains from './BuildChains';
 
 import './dnd.css';
 import Forms, {Input} from "./Forms";
+import { Pie } from '@nivo/pie';
 
 
-export type Element = (Node&{form?: any}) | Edge;
-const initialElements: Element[] = [];// [{ id: '1', type: 'input', data: { label: 'input node' }, style: {width: '200px'}, position: { x: 250, y: 5 } }];
+export type Element = (Node & {form?: any, outputNode?: ((item: { id: string, state: any }) => JSX.Element)}) | Edge;
+const initialElements: Element[] = [];
 
 
 const onDragOver = (event: DragEvent) => {
@@ -36,6 +41,12 @@ const onDragOver = (event: DragEvent) => {
 let id = 0;
 const getId = (): ElementId => `dndnode_${id++}`;
 
+const outputTypes = {
+    'text': TextOutputNode,
+    'barchart': BarChartNode,
+    'piechart': PieChartNode,
+    'calendar': CalendarNode
+}
 
 const DnDFlow = () => {
 
@@ -65,14 +76,18 @@ const DnDFlow = () => {
   })
   console.log(finalOutput)
 
-  // @ts-ignore
-  Promise.all(finalOutput.map(chain => chain.reduce(async (acc, func) => func(await acc), undefined)))
-
+  const debounce = useDebouncedCallback(()=>{
+      finalOutput.map(chain => chain.reduce(async (acc, func) => func(await acc), undefined))
+      console.log('asdfasdfasdf')
+  }, 1800)
+    debounce();
 
 
   const onConnect = (params: Connection | Edge) => setElements((els) => addEdge(params, els));
   const onElementsRemove = (elementsToRemove: Elements) => setElements((els) => removeElements(elementsToRemove, els));
   const onLoad = (_reactFlowInstance: OnLoadParams) => setReactFlowInstance(_reactFlowInstance);
+
+
 
   const onDrop = (event: DragEvent) => {
     event.preventDefault();
@@ -84,20 +99,19 @@ const DnDFlow = () => {
       const id = getId();
       // Key id value = data
       const form = type.startsWith('form-') ? Forms[type.split('-')[1]] : null;
-      const barchart = type.startsWith('barchart-') ? Forms[type.split('-')[1]] : null;
       if(form) changePageData(id, form.output({}))
-      if(type === 'output' || type === 'barchart') {
+      if(type in outputTypes) {
         changePageData(id, id);
       }
-      const newNode: Node&{form?:any} = {
-        id:(type==='barchart')?'barchart-'+id:id,
-        type:form?
-            (form.start?'input':'default'):(type==='barchart')?'output':`${type}`,
+      const newNode: Element = {
+        id,
+        outputNode: outputTypes[type as keyof typeof outputTypes],
+        type:form ? (form.start ? 'input' : 'default') : 'output',
         position,
         form,
 
         style: {
-          width: '900px'
+          width: (type in outputTypes) ? '900px' : '300px'
         }
       };
 
@@ -115,12 +129,13 @@ const DnDFlow = () => {
                     return { ...i, data: {
                       label:
                           ( i.form ) ? <NodeForm title={i.form.name} id={i.id} data={{}} inputs={i.form.inputs} defaults={pageData[id]} onChange={changePageData} output={i.form.output} /> :
-                          // (i.id.startsWith('barchart')) ? <BarChartNode id={i.id} state={outputData[i.id]}/>:
-                          (i.type==='output') ? <TextOutputNode id={i.id} state={outputData[i.id]}/>:
+                          (i.type==='output' && i.outputNode) ? <i.outputNode id={i.id} state={outputData[i.id]}/>:
                           `${i.type} node`
                     }}
                   }
-                  return i;
+                  return {...i, style: {
+                        strokeWidth: '4px',
+                      }};
                 })}
                 onConnect={onConnect}
                 onElementsRemove={onElementsRemove}
@@ -166,7 +181,7 @@ function NodeForm ({ title, id, data = {}, defaults = {}, inputs, onChange, outp
   )
 }
 
-function BarOutputNode({ id, state=''} : { id: string, state: any}) {
+function TextOutputNode({ id, state=''} : { id: string, state: any}) {
   return (
       <div>
         {JSON.stringify(state, null, '\t')}
@@ -174,7 +189,7 @@ function BarOutputNode({ id, state=''} : { id: string, state: any}) {
   );
 }
 
-function TextOutputNode ({ id, state=[]} : { id: string, state: any}) {
+function BarChartNode ({ id, state=[]} : { id: string, state: any}) {
    const [data, setData] = useState({keys: [], indexBy: ''});
   const change = (data: any) => {
     setData(data);
@@ -198,10 +213,12 @@ function TextOutputNode ({ id, state=[]} : { id: string, state: any}) {
           height={500}
           // keys={['1', '2','3','4','5','6','7']}
           // indexBy={data.indexBy}
+          colorBy={'indexValue'}
           margin={{ top: 50, right: 130, bottom: 50, left: 60 }}
           padding={0.4}
           valueScale={{ type: "linear" }}
-          colors="#3182CE"
+          colors={{ scheme: 'nivo' }}
+          // colors="#3182CE"
           animate={true}
           enableLabel={false}
           axisTop={null}
@@ -218,50 +235,70 @@ function TextOutputNode ({ id, state=[]} : { id: string, state: any}) {
       </div>
   )
 }
-// function PieOutputNode ({ id, state=[]} : { id: string, state: any}) {
-//   const [data, setData] = useState({keys: [], indexBy: ''});
-//   const change = (data: any) => {
-//     setData(data);
-//     // onChange(id, output(data));
-//     console.log(data.keys)
-//     console.log(state);
-//
-//   };
-//   return (
-//       // <div>
-//       //     {JSON.stringify(state, null, '\t')}keys: state.map((i)=>i[e.target.value])
-//       // </div>reduceBy((a:number)=> a + 1, 0, (i: any)=> i[e.target.value], state)
-//       <div>
-//         {/* @ts-ignore*/}
-//         <input type="text" value={data.key} placeholder="key" onChange={(e) => change({...data, keys: toPairs(state).map((i)=>({id: i[0], value:i[1]})), key: e.target.value})}/>
-//         {/*<input type="text" value={data.indexBy} placeholder="indexBy" onChange={(e) => change({...data, indexBy: e.target.value})}/>*/}
-//         {/*{JSON.stringify(state, null, '\t')}*/}
-//         <Pie
-//             data={toPairs(state).map((i)=>({id: i[0], value:i[1]}))}//data.keys
-//             width={1000}
-//             height={500}
-//             // keys={['1', '2','3','4','5','6','7']}
-//             // indexBy={data.indexBy}
-//             margin={{ top: 50, right: 130, bottom: 50, left: 60 }}
-//             // padding={0.4}
-//             // valueScale={{ type: "linear" }}
-//             colors="#3182CE"
-//             animate={true}
-//             // enableLabel={false}
-//             // axisTop={null}
-//             // axisRight={null}
-//             // axisLeft={{
-//             //   tickSize: 5,
-//             //   tickPadding: 5,
-//             //   tickRotation: 0,
-//             //   legend: "",
-//             //   legendPosition: "middle",
-//             //   legendOffset: -40
-//
-//         />
-//       </div>
-//   )
-// }
+function PieChartNode ({ id, state=[]} : { id: string, state: any}) {
+  const [data, setData] = useState({keys: [], indexBy: ''});
+  const change = (data: any) => {
+    setData(data);
+    // onChange(id, output(data));
+    console.log(data.keys)
+    console.log(state);
+
+  };
+  return (
+      // <div>
+      //     {JSON.stringify(state, null, '\t')}keys: state.map((i)=>i[e.target.value])
+      // </div>reduceBy((a:number)=> a + 1, 0, (i: any)=> i[e.target.value], state)
+      <div>
+        {/* @ts-ignore*/}
+        <input type="text" value={data.key} placeholder="key" onChange={(e) => change({...data, keys: toPairs(state).map((i)=>({id: i[0], value:i[1]})), key: e.target.value})}/>
+          <input type="color" />
+
+          {/*<input type="text" value={data.indexBy} placeholder="indexBy" onChange={(e) => change({...data, indexBy: e.target.value})}/>*/}
+        {/*{JSON.stringify(state, null, '\t')}*/}
+        <Pie
+            data={toPairs(state).map((i)=>({id: i[0], value:i[1]}))}//data.keys
+            width={1000}
+            height={500}
+
+            // keys={['1', '2','3','4','5','6','7']}
+            // indexBy={data.indexBy}
+            margin={{ top: 50, right: 130, bottom: 50, left: 60 }}
+            // padding={0.4}
+            // valueScale={{ type: "linear" }}
+            animate={true}
+            // enableLabel={false}
+            // axisTop={null}
+            // axisRight={null}
+            // axisLeft={{
+            //   tickSize: 5,
+            //   tickPadding: 5,
+            //   tickRotation: 0,
+            //   legend: "",
+            //   legendPosition: "middle",
+            //   legendOffset: -40
+
+        />
+      </div>
+  )
+}
+
+function CalendarNode ({ id, state=[]} : { id: string, state: any}) {
+    const [key, setKey] = useState('');
+    const keys = useMemo(() => toPairs(key===''?state:reduceBy((a:number)=> a + 1, 0, (i: any)=> i[key], state)).map((i)=>({day: i[0].split('T')[0], value:i[1]})), [state, key])
+    return (
+        <div>
+            <input type="text" value={key} placeholder="key" onChange={(e) => setKey(e.target.value)}/>
+            <Calendar
+                data={keys}//data.keys
+                width={1000}
+                height={500}
+                from="2019-01-01"
+                to="2022-01-13"
+                margin={{ top: 40, right: 40, bottom: 40, left: 40 }}
+            />
+        </div>
+    )
+}
 
 
 export default DnDFlow;

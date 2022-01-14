@@ -2,7 +2,13 @@ import {drop, indexBy, pluck, sum, take, uniq, uniqBy, reduceBy, equals, prop, m
 import filter from './filter';
 import request from './request';
 import groupAverage from './groupAverage';
+import memoize from './memoize';
 const soda = require('soda-js');
+
+const query = memoize(async (url: string, dataset: string, limit = 10000, offset = 0) => new Promise((resolve, reject) => (new soda.Consumer(url)).query().withDataset(dataset).limit(limit).offset(offset).getRows().on('success', resolve).on('error', reject)), {
+    resolver: (...args: any[]) => JSON.stringify(args)
+});
+
 
 export type Input = {
     type: 'input',
@@ -101,11 +107,26 @@ const Forms: Form[] = [
         name: "San Francisco Crime Data",
         inputs: [],
         start: true,
-        output: ({URL='https://jsonplaceholder.typicode.com/todos'}) => async () => {
-            var consumer = new soda.Consumer('data.sfgov.org');
-            let data = await new Promise((resolve, reject) => consumer.query().withDataset('wg3w-h783').limit(1000).getRows().on('success', resolve).on('error', reject))
-            return data;
-        }
+        output: ({URL='https://jsonplaceholder.typicode.com/todos'}) => memoize(async () => {
+
+            // let consumer = new soda.Consumer('data.sfgov.org');
+            // let data = await new Promise((resolve, reject) => {
+            //     consumer.query().withDataset('wg3w-h783').limit(1000).getRows().on('success', resolve).on('error', reject)
+            // })
+            let result: any[] = [];
+            let offset = 0;
+            while (true) {
+                const request = await query('data.sfgov.org', 'wg3w-h783', 100000, offset);
+                // @ts-ignore
+                result = result.concat(request);
+                // @ts-ignore
+                if (request.length===0) {
+                    break;
+                }
+                offset+=100000;
+            }
+            return result;
+        })
     },
     {
         name: "Group Count",
