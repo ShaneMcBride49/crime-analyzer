@@ -8,7 +8,7 @@ import DnDFlow from "./App";
 ReactDOM.render(
   <React.StrictMode>
       <div className="window">
-        <DnDFlow/>
+        <App/>
       </div>
   </React.StrictMode>,
   document.getElementById('root')
