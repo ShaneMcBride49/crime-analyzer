@@ -1,4 +1,4 @@
-import memoize from './memoize';
+import memoize from './memoize'
 
 const request = memoize((val: string) => fetch(val).then(data => data.json()))
-export default request;
+export default request

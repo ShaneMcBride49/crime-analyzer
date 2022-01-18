@@ -1,6 +1,6 @@
 import { gt, gte, lt, lte } from 'ramda'
-const notEquals = (a: any, b: any) => a!= b;
-const equals = (a: any, b: any) => a == b;
+const notEquals = (a: any, b: any) => a!= b
+const equals = (a: any, b: any) => a == b
 const operators = {
     '=': equals,
     '>': gt,
@@ -11,9 +11,8 @@ const operators = {
 } as const
 
 function filter (name: string, value: string, method: keyof typeof operators = '=') {
-    const operator = operators[method];
-    // @ts-ignore
-    return (arr: any[]) => arr.filter(i => operator(i[name], value));
+    const operator = operators[method]
+    return (arr: any[]) => arr.filter(i => operator(i[name], value))
 }
 
-export default filter;
+export default filter

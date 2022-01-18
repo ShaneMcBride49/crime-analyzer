@@ -1,4 +1,4 @@
-import {reduceBy, map, curry} from "ramda";
+import {reduceBy, map, curry} from 'ramda'
 
 
 const groupAverage = curry((attribute: string, group: string, arr: any[]): number =>
@@ -12,4 +12,4 @@ const groupAverage = curry((attribute: string, group: string, arr: any[]): numbe
 )
 const averager = ({sum, count}: {sum: number, count: number}) => sum / count
 
-export default groupAverage;
+export default groupAverage

@@ -1,13 +1,15 @@
-import {reduceBy, toPairs } from "ramda";
-import { useMemo, useState } from "react";
-import { Pie } from '@nivo/pie';
+import {reduceBy, toPairs } from 'ramda'
+import { useMemo, useState } from 'react'
+import { Pie } from '@nivo/pie'
 
-export default function PieChartNode ({ id, state=[]} : { id: string, state: any}) {
-    const [key, setKey] = useState('');
+export default function PieChartNode ({ id, state=[]} : { id: string, state: any, onChange: any}) {
+    const [key, setKey] = useState('')
     const keys = useMemo(() => toPairs(key===''?state:reduceBy((a:number)=> a + 1, 0, (i: any)=> i[key], state)).map((i)=>({id: i[0], value:i[1]})), [state, key])
     return (
         <div>
-            <input type="text" value={key} placeholder="key" onChange={(e) => setKey(e.target.value)}/>
+            <b>Pie Chart</b>
+            <br/>
+            <input type='text' value={key} placeholder='key' onChange={(e) => setKey(e.target.value)}/>
             <Pie
                 data={keys}
                 width={1000}
